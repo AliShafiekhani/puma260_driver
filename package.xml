@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <name>puma260_driver</name>
+  <version>1.0.0</version>
+  <description>The package for puma 260 robotic arm</description>
+
+  <maintainer email="Ashafiekhani@mail.missouri.edu">Ali Shafiekhani</maintainer> 
+  <license>TODO</license>
+  <author email="Ashafiekhani@mail.missouri.edu">Ali Shafiekhani</author> 
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>roscpp</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+  </export>
+</package>

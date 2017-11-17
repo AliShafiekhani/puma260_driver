@@ -25,10 +25,10 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include "lab5/Puma_OP.h"
+#include "puma260_driver/Puma_OP.h"
 
 extern "C" {
-#include "lab5/serial_talk.h"
+#include "puma260_driver/serial_talk.h"
 }
 
 int hComm;					// the handle which will hold the opened serial port

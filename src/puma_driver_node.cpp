@@ -20,36 +20,25 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Point.h>
-#include <leap_motion/leapros.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
 #include <angles/angles.h>
  
-#include "lab5/Puma_OP.h"
+#include "puma260_driver/Puma_OP.h"
+#include "puma260_driver/XYZOAT.h"
+#include "puma260_driver/JointAngles.h"
 
 class Puma260{
 private:
+	ros::Publisher pos_pub_;
+	ros::Publisher joints_pub_;
 	tf::TransformBroadcaster br_;
-	tf::TransformListener ls_;
 
-	tf::Transform rb_to_origin_;
-	tf::Transform lm_to_origin_;
-	tf::Transform hand_to_lm_;
-	tf::Transform link1_to_rb_;
-	tf::Transform link2_to_link1_;
-	tf::Transform link3_to_link2_;
-	tf::Transform link4_to_link3_;
-	tf::Transform link5_to_link4_;
-	tf::Transform gripper_to_link5_;
+	puma260_driver::XYZOAT end_effector_pose_;
+	puma260_driver::JointAngles joint_angles_;
 
-	ros::Subscriber lm_sub_;
-
-	geometry_msgs::Vector3 ypr_;
-	geometry_msgs::Vector3 normal_;
-	geometry_msgs::Vector3 direction_;
-	geometry_msgs::Point xyz_;
 protected:
 	ros::NodeHandle nh_;
 	ros::NodeHandle priv_nh_;
@@ -57,69 +46,44 @@ protected:
 public:
 	Puma260(ros::NodeHandle&);
 	~Puma260();
-	void leapMotionCallback(const leap_motion::leapros::ConstPtr& msg);
-	void updateTF();
-
+	void readPoseAngles();
 };
 
 Puma260::Puma260(ros::NodeHandle& nh)
 : nh_(nh),
 priv_nh_("~")
-{
-	lm_sub_ = nh_.subscribe("/leapmotion/data", 1, &Puma260::leapMotionCallback, this);
 
+{
+	pos_pub_ = nh_.advertise<puma260_driver::XYZOAT>("/puma260/xyz_oat",1);
+	joints_pub_ = nh_.advertise<puma260_driver::JointAngles>("/puma260/joint_angles",1);
 }
+
 Puma260::~Puma260(){}
 
-void Puma260::leapMotionCallback(const leap_motion::leapros::ConstPtr& msg)
-{
-	ypr_ = msg->ypr;
-	normal_ = msg->normal;
-	direction_ = msg->direction;
-	xyz_ = msg->palmpos;
-	//ROS_INFO_STREAM("YPR = " << ypr_.x << ", " << ypr_.y << ", " << ypr_.z);
-	//ROS_INFO_STREAM("XYZ = " << xyz_.x << ", " << xyz_.y << ", " << xyz_.z);
-} 
+void Puma260::readPoseAngles(){
+	POSITION pos;
+	JOINTS jots;
 
-void Puma260::updateTF()
-{
-	ros::Time NOW = ros::Time::now();
+	if(READ_POSITION(&pos, &jots))
+		ROS_INFO_STREAM("Not able to read pose from puma");
+	else{
+		end_effector_pose_.x = pos.X;
+		end_effector_pose_.y = pos.Y;
+		end_effector_pose_.z = pos.Z;
+		end_effector_pose_.O = pos.O;
+		end_effector_pose_.A = pos.A;
+		end_effector_pose_.T = pos.T;
+		pos_pub_.publish(end_effector_pose_);
 
-	// Robot Base wrt Origin
-	rb_to_origin_.setOrigin(tf::Vector3(0, 0, 0.185));
-	tf::Quaternion q1;
-	q1.setRPY(0, 0, 0);
-	rb_to_origin_.setRotation(q1);
-	
-	// Leap Motion wrt Robot Base
-	lm_to_origin_.setOrigin(tf::Vector3(-0.215, 0.305, -0.200));
-	tf::Quaternion q2;
-	q2.setRPY(M_PI/2 , 0, 0);
-	lm_to_origin_.setRotation(q2);
-	
-	// Hand wrt Leap Motion
-	hand_to_lm_.setOrigin(tf::Vector3(xyz_.x / 1000, xyz_.y / 1000, xyz_.z / 1000));
-	tf::Quaternion q3;
-	q3.setRPY(angles::normalize_angle_positive(ypr_.z * M_PI / 180), angles::normalize_angle_positive(ypr_.y * M_PI / 180), angles::normalize_angle_positive(ypr_.x * M_PI / 180));
-	
-	hand_to_lm_.setRotation(q3);
-
-	br_.sendTransform(tf::StampedTransform(rb_to_origin_, NOW, "map", "rb"));
-	br_.sendTransform(tf::StampedTransform(lm_to_origin_, NOW, "map", "lm"));
-	br_.sendTransform(tf::StampedTransform(hand_to_lm_, NOW, "lm", "hand"));
-
-	tf::Transform hand_wrt_rb =  rb_to_origin_.inverse() * lm_to_origin_ * hand_to_lm_;
-	float X, Y, Z;
-	X = hand_wrt_rb.getOrigin().getX() * 1000;
-	Y = hand_wrt_rb.getOrigin().getY() * 1000;
-	Z = hand_wrt_rb.getOrigin().getZ() * 1000;
-
-	ROS_INFO_STREAM("XYZ = " << X << ", " << Y << ", " << Z);
-	
-	if(X>-380 && X < -170 && Y>180 && Y<350 && Z>-195)
-		MOVETO_XYZOAT_WO_CHECK(X, Y, Z, -90, 90, 0);
+		joint_angles_.j1 = jots.j1;
+		joint_angles_.j2 = jots.j2;
+		joint_angles_.j3 = jots.j3;
+		joint_angles_.j4 = jots.j4;
+		joint_angles_.j5 = jots.j5;
+		joint_angles_.j6 = jots.j6;
+		joints_pub_.publish(joint_angles_);
+	}
 }
-
 int main(int argc, char ** argv)
 {
 	ros::init(argc, argv, "tf_broadcaster_node");
@@ -128,10 +92,9 @@ int main(int argc, char ** argv)
 
 	Puma260 myRobot(nh);
 	ros::Rate rate(10);
-	setSpeed(10);
 	while(ros::ok()){
 		ros::spinOnce();
-		myRobot.updateTF();
+		myRobot.readPoseAngles();
 		rate.sleep();
 
 	}

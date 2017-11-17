@@ -25,7 +25,7 @@
 #include <fcntl.h>
 #include <termios.h>
 
-#include "lab5/serial_talk.h"
+#include "puma260_driver/serial_talk.h"
 
 
 //void signal_handler_IO (int status);   /* definition of signal handler */
@@ -42,7 +42,7 @@ void set_baud(int port, int final_baud){
     int port_id;
     struct termios t_port;
     #ifdef USB
-	   char COM_PORT[16]="/dev/ttyUSB1";
+	   char COM_PORT[16]="/dev/ttyUSB0";
     #else
 	   char COM_PORT[16]="/dev/ttyS0";
     #endif
@@ -97,7 +97,7 @@ int serial_open(int port, int initial_baud, int final_baud){
 	int port_id;
 	struct termios t_port;
     #ifdef USB
-		char COM_PORT[16]="/dev/ttyUSB1";
+		char COM_PORT[16]="/dev/ttyUSB0";
     #else
 	   char COM_PORT[16]="/dev/ttyS0";
     #endif
