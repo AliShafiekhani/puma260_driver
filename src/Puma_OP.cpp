@@ -1,6 +1,7 @@
 /*
  *  Copyright (C) 2014 Vision-Guided and Intelligent Robotics Lab
  *  Written by G. N. DeSouza <DeSouzaG@missouri.edu>
+ *	       Ali Shafiekhani <Ashafiekhani@mail.missouri.edu>
  *  based on original code by G. N. DeSouza and Youyou Wang
  *
  *  This program is free software; you can redistribute it and/or modify

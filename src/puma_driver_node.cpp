@@ -39,6 +39,9 @@ private:
 	puma260_driver::XYZOAT end_effector_pose_;
 	puma260_driver::JointAngles joint_angles_;
 
+	ros::ServiceServer ready_srv_;
+	ros::ServiceServer nest_srv_;
+
 protected:
 	ros::NodeHandle nh_;
 	ros::NodeHandle priv_nh_;
@@ -47,6 +50,8 @@ public:
 	Puma260(ros::NodeHandle&);
 	~Puma260();
 	void readPoseAngles();
+	bool pumaReady(puma260_driver::ReadyPuma::Request &req, puma260_driver::ReadyPuma::Response &res);
+	bool pumaNest(puma260_driver::NestPuma::Request &req, puma260_driver::NestPuma::Response &res);
 };
 
 Puma260::Puma260(ros::NodeHandle& nh)
@@ -56,6 +61,9 @@ priv_nh_("~")
 {
 	pos_pub_ = nh_.advertise<puma260_driver::XYZOAT>("/puma260/xyz_oat",1);
 	joints_pub_ = nh_.advertise<puma260_driver::JointAngles>("/puma260/joint_angles",1);
+	ready_srv_ = nh_.advertiseService("/puma260/puma_ready",&Puma260::pumaReady, this);
+	nest_srv_ = nh_.advertiseService("/puma260/puma_nest", &Puma260::pumaNest, this);
+
 }
 
 Puma260::~Puma260(){}
@@ -84,6 +92,38 @@ void Puma260::readPoseAngles(){
 		joints_pub_.publish(joint_angles_);
 	}
 }
+
+bool Puma260::pumaReady(puma260_driver::ReadyPuma::Request &req, puma260_driver::ReadyPuma::Response &res){
+	if (doReady() == 1)
+	{
+		res.readyarm_result = "PUMA ARM HAS BEEN RETURNED TO READY POS";
+		return true;
+	}
+	else{
+		res.readyarm_result = "PUMA ARM UNABLE TO RETURN TO READY POS";
+		return false;
+	}
+}
+
+bool Puma260::pumaNest(puma260_driver::NestPuma::Request &req, puma260_driver::NestPuma::Response &res){
+	if (doReady() == -1){
+		ROS_INFO_STREAM("PUMA ARM UNABLE TO RETURN TO READY POS");
+		res.nestarm_result = "PUMA UNABLE TO RETURN TO NEST, MOVE ARM TO READY FIRST";
+		return false;
+	}
+	else{
+		if(doNest() == 1){
+			res.nestarm_result = "PUMA ARM HAS BEEN RETURNED TO NEST POS";
+			return true;
+		}
+		else{
+			res.nestarm_result = "PUMA UNABLE TO RETURN TO NEST, MOVE ARM TO READY FIRST";
+			return false;
+		}
+	}
+}
+
+
 int main(int argc, char ** argv)
 {
 	ros::init(argc, argv, "tf_broadcaster_node");
